@@ -58,7 +58,7 @@ def am_modulation(data, percentage, freq):
     save_audio("audio_am_" + str(percentage) + ".wav", data[0], mod_signal_small/500)
 
     # Generación de gráficos (modulada y espectros de frecuencia)
-    plot_signal(samples_carrier, mod_signal, "Modulación AM "+str(percentage), "T[s]", "Amplitud[dB]")
+    plot_signal(samples_carrier, mod_signal, "Modulación AM "+str(percentage)+"%", "T[s]", "Amplitud[dB]")
     plot_spectrums(information, mod_signal, carrier, samples_carrier, "TF_AM_"+str(percentage)+"%")
     return mod_signal, samples_carrier
 
@@ -76,6 +76,7 @@ def fm_modulation(data, percentage, freq):
     signal_time = len(data[1]) / data[0]
     # Se generan las muestras de la portadora, a una frecuencia de muestreo de 4 veces la frecuencia a la que se modula.
     samples_carrier = np.arange(0, signal_time, 1 / (4 * freq))
+    # Se general las muestras del mensaje original, las que luego son empleadas para interpolar el audio original.
     samples_signal = np.linspace(0, signal_time, len(data[1]))
     carrier = np.cos(2 * np.pi * freq * samples_carrier)
 
@@ -113,12 +114,13 @@ def am_demodulation(modulated, samples_carrier, freq, percentage, meta_data):
     carrier = np.cos(2 * np.pi * freq * samples_carrier)
     demod_signal = modulated*carrier
 
+    ft_am_0 = np.abs(fftp.fftshift(fftp.fft(demod_signal)))
     # Se aplica un filtro paso bajo (diseñado en el lab 2) sobre la señal demodulada para obtener la señal original.
     demod_signal = lab2lib.filter_signal([4*freq, demod_signal], freq/2)
 
     # Se emplea fftshift sobre fftfreq para obtener un eje x en el dominio de las frecuencias.
     xf = fftp.fftshift(fftp.fftfreq(len(modulated), samples_carrier[2]-samples_carrier[1]))
-    ft_am = np.abs(fftp.fftshift(fftp.fft(demod_signal[1])))
+    ft_am_1 = np.abs(fftp.fftshift(fftp.fft(demod_signal[1])))
 
     signal_time = len(demod_signal[1])/demod_signal[0]
     samples_signal = np.linspace(0, signal_time, meta_data[1])
@@ -129,7 +131,8 @@ def am_demodulation(modulated, samples_carrier, freq, percentage, meta_data):
     # Se grafica la señal demodulada y su transformada de fourier
     plot_signal(np.linspace(0, len(demod_signal[1])/demod_signal[0], len(demod_signal[1])), demod_signal[1],
                 "Señal demodulada "+str(percentage)+"%", "T[s]", "Amplitud[dB]")
-    plot_signal(xf, ft_am, "TF Demodulación AM "+str(percentage)+"%", "Frecuencia[Hz]", "Amplitud[dB]")
+    plot_signal(xf, ft_am_0, "TF Demodulación AM (sin filtro)" + str(percentage)+ "%", "Frecuencia[Hz]", "|F(w)|")
+    plot_signal(xf, ft_am_1, "TF Demodulación AM (con filtro)" + str(percentage)+ "%", "Frecuencia[Hz]", "|F(w)|")
     return demod_signal
 
 
@@ -153,14 +156,20 @@ def plot_spectrums(information, modulated, carrier, samples_carrier, name):
     # Creación de una figura con subplots, correspondientes a cada transformada
     plt.subplot(221)
     plt.title("FT de la moduladora")
+    plt.xlabel("|F(w)|")
+    plt.ylabel("Frecuencia[Hz]")
     plt.grid()
     plt.plot(xf[0:samples//2], np.abs(ft_original[0:samples//2]))
     plt.subplot(222)
     plt.title("FT de la portadora")
+    plt.xlabel("|F(w)|")
+    plt.ylabel("Frecuencia[Hz]")
     plt.grid()
     plt.plot(xf[0:samples//2], np.abs(ft_carrier[0:samples//2]), "r")
     plt.subplot(223)
     plt.title("FT de la señal modulada")
+    plt.xlabel("|F(w)|")
+    plt.ylabel("Frecuencia[Hz]")
     plt.grid()
     plt.plot(xf[0:samples//2], np.abs(ft_modulated[0:samples//2]), "g")
     plt.tight_layout()

@@ -1,1 +1,4 @@
 .idea
+graphs/
+audio/
+__pycache__/
