@@ -13,7 +13,10 @@ import lab2lib
 #           - Arreglo, en su primera posición se ubica un entero que indica la frecuencia de muestreo del audio
 #             mientras que en su segunda posición se encuentra otro arreglo que representa el audio abierto.
 def open_audio(audio):
-    return wavfile.read(audio)
+    rate, audio = wavfile.read(audio)
+    if isinstance(audio[1], np.ndarray):
+        audio = audio[:, 0]
+    return [rate, audio]
 
 # Función save_audio: Se encarga de guardar un archivo de audio en formato wav.
 # Entrada:
@@ -51,11 +54,11 @@ def am_modulation(data, percentage, freq):
     m = percentage/100
 
     # Cálculo de la señal modulada.
-    mod_signal = m*information*carrier
+    mod_signal = (1+m*information)*carrier
 
     # Se interpola la señal modulada para tener una frecuencia de muestreo menor, soportada por wavfile.write()
     mod_signal_small = np.interp(samples_signal, samples_carrier, mod_signal)
-    save_audio("audio_am_" + str(percentage) + ".wav", data[0], mod_signal_small/500)
+    save_audio("audio_am_" + str(percentage) + ".wav", data[0], mod_signal_small/3000)
 
     # Generación de gráficos (modulada y espectros de frecuencia)
     plot_signal(samples_carrier, mod_signal, "Modulación AM "+str(percentage)+"%", "T[s]", "Amplitud[dB]")
@@ -90,7 +93,7 @@ def fm_modulation(data, percentage, freq):
 
     # Interpolación de la señal para tener una frecuencia de muestreo soportada por wavfile.write()
     mod_signal_small = np.interp(samples_signal, samples_carrier, mod_signal)
-    save_audio("audio_fm_"+str(percentage)+".wav", data[0], mod_signal_small*5)
+    save_audio("audio_fm_"+str(percentage)+".wav", data[0], mod_signal_small/10)
 
     # Generación de gráficos (modulada y espectros de frecuencia)
     plot_signal(samples_carrier, mod_signal, "Modulación FM "+str(percentage)+"%", "T[s]"
@@ -156,20 +159,20 @@ def plot_spectrums(information, modulated, carrier, samples_carrier, name):
     # Creación de una figura con subplots, correspondientes a cada transformada
     plt.subplot(221)
     plt.title("FT de la moduladora")
-    plt.xlabel("|F(w)|")
-    plt.ylabel("Frecuencia[Hz]")
+    plt.ylabel("|F(w)|")
+    plt.xlabel("Frecuencia[Hz]")
     plt.grid()
     plt.plot(xf[0:samples//2], np.abs(ft_original[0:samples//2]))
     plt.subplot(222)
     plt.title("FT de la portadora")
-    plt.xlabel("|F(w)|")
-    plt.ylabel("Frecuencia[Hz]")
+    plt.ylabel("|F(w)|")
+    plt.xlabel("Frecuencia[Hz]")
     plt.grid()
     plt.plot(xf[0:samples//2], np.abs(ft_carrier[0:samples//2]), "r")
     plt.subplot(223)
     plt.title("FT de la señal modulada")
-    plt.xlabel("|F(w)|")
-    plt.ylabel("Frecuencia[Hz]")
+    plt.ylabel("|F(w)|")
+    plt.xlabel("Frecuencia[Hz]")
     plt.grid()
     plt.plot(xf[0:samples//2], np.abs(ft_modulated[0:samples//2]), "g")
     plt.tight_layout()
@@ -211,6 +214,8 @@ def plot_signal(time, data, name, x_axis, y_axis, x_limit=[]):
 def lab4_modulation(file_name, frequency):
     if os.path.isfile(file_name):
         signal = open_audio(file_name)
+        plot_signal(np.linspace(0, len(signal[1])/signal[0], len(signal[1])), signal[1],
+                    "Señal Original", "T[s]", "Amplitud[dB]")
         print("AM 15% en progreso... ", end="", flush=True)
         am, sc = am_modulation(signal, 15, frequency)
         am_demodulation(am, sc, frequency, 15, [signal[0], len(signal[1])])
